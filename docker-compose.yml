@@ -339,7 +339,7 @@ services:
     command:
       - /opt/entrypoint/entrypoint.bash
   ubuntu12_build:
-    image: proxysql/packaging:build-ubuntu12
+    image: deniszh/proxysql_packaging:build-ubuntu12
     volumes:
       - ./docker/images/proxysql/deb-compliant/pre-systemd/ctl/:/root/ctl/
       - ./docker/images/proxysql/deb-compliant/entrypoint/:/opt/entrypoint/
