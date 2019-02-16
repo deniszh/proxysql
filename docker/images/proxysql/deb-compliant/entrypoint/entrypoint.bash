@@ -7,12 +7,20 @@ rm -f /opt/proxysql/proxysql.ctl || true && \
 cd /opt/proxysql && \
 # Patch for Ubuntu 12
 if [ "`grep Ubuntu /etc/issue | awk '{print $2}' | cut -d. -f1`" == "12" ]; then
-	sed -i -e 's/c++11/c++0x/' lib/Makefile
-	sed -i -e 's/c++11/c++0x/' src/Makefile
-        cd /opt/proxysql/deps/re2/
+    # restore c++11 compatibility just in case
+    sed -i -e 's/c++0x/c++11/' lib/Makefile
+    sed -i -e 's/c++0x/c++11/' src/Makefile
+    # install new g++
+    apt-get install -y python-software-properties
+    add-apt-repository ppa:ubuntu-toolchain-r/test
+    apt-get update
+    apt-get install -y gcc-4.8 g++-4.8
+    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.8 50
+    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.8 50
+    cd /opt/proxysql/deps/re2/
 	mv re2.tar.gz /tmp/
-	wget -O re2.tar.gz https://github.com/sysown/proxysql/raw/v1.3.9/deps/re2/re2-20140304.tgz 
-        cd /opt/proxysql
+	wget -O re2.tar.gz https://github.com/sysown/proxysql/raw/v1.3.9/deps/re2/re2-20140304.tgz
+    cd /opt/proxysql
 fi
 ${MAKE} cleanbuild && \
 ${MAKE} ${MAKEOPT} build_deps && \
@@ -26,8 +34,6 @@ mv /opt/proxysql/proxysql_${CURVER}_amd64.deb ./binaries/proxysql_${CURVER}-${PK
 # Cleanup current build
 # Unpatch Ubuntu 12
 if [ "`grep Ubuntu /etc/issue | awk '{print $2}' | cut -d. -f1`" == "12" ]; then
-        sed -i -e 's/c++0x/c++11/' lib/Makefile
-        sed -i -e 's/c++0x/c++11/' src/Makefile
         mv /tmp/re2.tar.gz /opt/proxysql/deps/re2/
 fi
 rm -f /opt/proxysql/proxysql.ctl /opt/proxysql/proxysql
