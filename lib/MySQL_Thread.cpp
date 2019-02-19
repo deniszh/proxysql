@@ -317,6 +317,7 @@ static char * mysql_thread_variables_names[]= {
 	(char *)"stacksize",
 	(char *)"threads",
 	(char *)"init_connect",
+	(char *)"ldap_user_variable",
 	(char *)"add_ldap_user_comment",
 	(char *)"default_sql_mode",
 	(char *)"default_time_zone",
@@ -410,6 +411,7 @@ MySQL_Threads_Handler::MySQL_Threads_Handler() {
 	variables.long_query_time=1000;
 	variables.query_cache_size_MB=256;
 	variables.init_connect=NULL;
+	variables.ldap_user_variable=NULL;
 	variables.add_ldap_user_comment=NULL;
 	variables.default_sql_mode=strdup((char *)MYSQL_DEFAULT_SQL_MODE);
 	variables.default_time_zone=strdup((char *)MYSQL_DEFAULT_TIME_ZONE);
@@ -580,6 +582,13 @@ char * MySQL_Threads_Handler::get_variable_string(char *name) {
 			return strdup(variables.init_connect);
 		}
 	}
+	if (!strcasecmp(name,"ldap_user_variable")) {
+		if (variables.ldap_user_variable==NULL || strlen(variables.ldap_user_variable)==0) {
+			return NULL;
+		} else {
+			return strdup(variables.ldap_user_variable);
+		}
+	}
 	if (!strcasecmp(name,"add_ldap_user_comment")) {
 		if (variables.add_ldap_user_comment==NULL || strlen(variables.add_ldap_user_comment)==0) {
 			return NULL;
@@ -620,7 +629,7 @@ uint8_t MySQL_Threads_Handler::get_variable_uint8(char *name) {
 }
 
 int MySQL_Threads_Handler::get_variable_int(const char *name) {
-VALGRIND_DISABLE_ERROR_REPORTING;
+//VALGRIND_DISABLE_ERROR_REPORTING;
 #ifdef DEBUG
 	if (!strcasecmp(name,"session_debug")) return (int)variables.session_debug;
 #endif /* DEBUG */
@@ -782,11 +791,11 @@ VALGRIND_DISABLE_ERROR_REPORTING;
 	if (!strcasecmp(name,"client_multi_statements")) return (int)variables.client_multi_statements;
 	proxy_error("Not existing variable: %s\n", name); assert(0);
 	return 0;
-VALGRIND_ENABLE_ERROR_REPORTING;
+//VALGRIND_ENABLE_ERROR_REPORTING;
 }
 
 char * MySQL_Threads_Handler::get_variable(char *name) {	// this is the public function, accessible from admin
-VALGRIND_DISABLE_ERROR_REPORTING;
+//VALGRIND_DISABLE_ERROR_REPORTING;
 #define INTBUFSIZE	4096
 	char intbuf[INTBUFSIZE];
 	if (!strcasecmp(name,"init_connect")) {
@@ -794,6 +803,13 @@ VALGRIND_DISABLE_ERROR_REPORTING;
 			return NULL;
 		} else {
 			return strdup(variables.init_connect);
+		}
+	}
+	if (!strcasecmp(name,"ldap_user_variable")) {
+		if (variables.ldap_user_variable==NULL || strlen(variables.ldap_user_variable)==0) {
+			return NULL;
+		} else {
+			return strdup(variables.ldap_user_variable);
 		}
 	}
 	if (!strcasecmp(name,"add_ldap_user_comment")) {
@@ -1221,7 +1237,7 @@ VALGRIND_DISABLE_ERROR_REPORTING;
 		return strdup((variables.default_reconnect ? "true" : "false"));
 	}
 	return NULL;
-VALGRIND_ENABLE_ERROR_REPORTING;
+//VALGRIND_ENABLE_ERROR_REPORTING;
 }
 
 
@@ -1919,8 +1935,17 @@ bool MySQL_Threads_Handler::set_variable(char *name, char *value) {	// this is t
 		}
 		return true;
 	}
+	if (!strcasecmp(name,"ldap_user_variable")) {
+		if (variables.ldap_user_variable) free(variables.ldap_user_variable);
+		variables.ldap_user_variable=NULL;
+		if (vallen) {
+			if (strcmp(value,"(null)"))
+				variables.ldap_user_variable=strdup(value);
+		}
+		return true;
+	}
 	if (!strcasecmp(name,"add_ldap_user_comment")) {
-		if (variables.init_connect) free(variables.add_ldap_user_comment);
+		if (variables.add_ldap_user_comment) free(variables.add_ldap_user_comment);
 		variables.add_ldap_user_comment=NULL;
 		if (vallen) {
 			if (strcmp(value,"(null)"))
@@ -2486,6 +2511,7 @@ MySQL_Threads_Handler::~MySQL_Threads_Handler() {
 	if (variables.interfaces) free(variables.interfaces);
 	if (variables.server_version) free(variables.server_version);
 	if (variables.init_connect) free(variables.init_connect);
+	if (variables.ldap_user_variable) free(variables.ldap_user_variable);
 	if (variables.add_ldap_user_comment) free(variables.add_ldap_user_comment);
 	if (variables.default_sql_mode) free(variables.default_sql_mode);
 	if (variables.default_time_zone) free(variables.default_time_zone);
@@ -2601,6 +2627,7 @@ MySQL_Thread::~MySQL_Thread() {
 	if (mysql_thread___default_schema) { free(mysql_thread___default_schema); mysql_thread___default_schema=NULL; }
 	if (mysql_thread___server_version) { free(mysql_thread___server_version); mysql_thread___server_version=NULL; }
 	if (mysql_thread___init_connect) { free(mysql_thread___init_connect); mysql_thread___init_connect=NULL; }
+	if (mysql_thread___ldap_user_variable) { free(mysql_thread___ldap_user_variable); mysql_thread___ldap_user_variable=NULL; }
 	if (mysql_thread___add_ldap_user_comment) { free(mysql_thread___add_ldap_user_comment); mysql_thread___add_ldap_user_comment=NULL; }
 	if (mysql_thread___default_sql_mode) { free(mysql_thread___default_sql_mode); mysql_thread___default_sql_mode=NULL; }
 	if (mysql_thread___default_time_zone) { free(mysql_thread___default_time_zone); mysql_thread___default_time_zone=NULL; }
@@ -3317,9 +3344,9 @@ __run_skip_2:
 					}
 				}
 			} else {
-				VALGRIND_DISABLE_ERROR_REPORTING;
+				//VALGRIND_DISABLE_ERROR_REPORTING;
 				pthread_mutex_lock(&thr->myexchange.mutex_resumes);
-				VALGRIND_ENABLE_ERROR_REPORTING;
+				//VALGRIND_ENABLE_ERROR_REPORTING;
 				if (shutdown==0 && thr->shutdown==0 && thr->myexchange.resume_mysql_sessions->len) {
 					unsigned char c=0;
 					int fd=thr->pipefd[1];
@@ -3327,9 +3354,9 @@ __run_skip_2:
 						//proxy_error("Error while signaling maintenance thread\n");
 					}
 				}
-				VALGRIND_DISABLE_ERROR_REPORTING;
+				//VALGRIND_DISABLE_ERROR_REPORTING;
 				pthread_mutex_unlock(&thr->myexchange.mutex_resumes);
-				VALGRIND_ENABLE_ERROR_REPORTING;
+				//VALGRIND_ENABLE_ERROR_REPORTING;
 			}
 		} else {
 #endif // IDLE_THREADS
@@ -3420,6 +3447,7 @@ bool MySQL_Thread::process_data_on_data_stream(MySQL_Data_Stream *myds, unsigned
 									int _rc = poll(&_fds, _nfds, 0);
 									if ((_rc > 0) && _fds.revents == POLLIN) {
 										// there is more data
+										myds->revents = _fds.revents;
 									} else {
 										rb = 0; // exit loop
 									}
@@ -3692,6 +3720,8 @@ void MySQL_Thread::refresh_variables() {
 
 	if (mysql_thread___init_connect) free(mysql_thread___init_connect);
 	mysql_thread___init_connect=GloMTH->get_variable_string((char *)"init_connect");
+	if (mysql_thread___ldap_user_variable) free(mysql_thread___ldap_user_variable);
+	mysql_thread___ldap_user_variable=GloMTH->get_variable_string((char *)"ldap_user_variable");
 	if (mysql_thread___add_ldap_user_comment) free(mysql_thread___add_ldap_user_comment);
 	mysql_thread___add_ldap_user_comment=GloMTH->get_variable_string((char *)"add_ldap_user_comment");
 	if (mysql_thread___default_sql_mode) free(mysql_thread___default_sql_mode);
@@ -3762,6 +3792,7 @@ MySQL_Thread::MySQL_Thread() {
 	__thread_MySQL_Thread_Variables_version=0;
 	mysql_thread___server_version=NULL;
 	mysql_thread___init_connect=NULL;
+	mysql_thread___ldap_user_variable=NULL;
 	mysql_thread___add_ldap_user_comment=NULL;
 	mysql_thread___eventslog_filename=NULL;
 
